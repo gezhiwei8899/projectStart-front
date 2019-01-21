@@ -1,55 +1,186 @@
 <template>
   <div class="col-sm-12 col-md-6">
-    <h2>Project Metadata</h2>
-    <div class="form-group groupid-form-group">
-      <label for="groupId" class="control-label">Group</label>
-      <input tabindex="4" id="groupId" class="form-control" type="text" v-model="groupId" name="groupId">
-    </div>
-    <div class="form-group artifactid-form-group">
-      <label for="artifactId" class="control-label">Artifact</label>
-      <input tabindex="5" id="artifactId" class="form-control" type="text" v-model="artifact" name="artifactId">
-    </div>
-    <div class="form-group artifactid-form-group">
-      <label for="mysqlUrl" class="control-label">数据库连接</label>
-      <input tabindex="5" id="mysqlUrl" class="form-control" type="text" v-model="mysqlUrl" name="mysqlUrl">
-    </div>
-    <div class="form-group artifactid-form-group">
-      <label for="mysqlUser" class="control-label">数据库用户</label>
-      <input tabindex="5" id="mysqlUser" class="form-control" type="text" v-model="mysqlUser" name="mysqlUser">
-    </div>
-    <div class="form-group artifactid-form-group">
-      <label for="mysqlPassword" class="control-label">数据库密码</label>
-      <input tabindex="5" id="mysqlPassword" class="form-control" type="text" v-model="mysqlPassword" name="mysqlPassword">
+    <h2>年假计算</h2>
+    <div class="nianjia">
+      一年按照366天计算，每30.5天加1.25天年假，每一年半清零上一年年假数据
     </div>
     <div>
-      <button class="download" @click="downloadXyz">下载</button>
+      <div class="form-group artifactid-form-group">
+        <label class="control-label">入职时间： </label>
+        <v-date-picker v-model="entryTime" style="width:200px;display:inline-block" ></v-date-picker>
+      </div>
+      <div class="compute_vacation">
+        <v-button type="primary" @click="commpute">计算年假</v-button>
+      </div>
+      <div class="form-group artifactid-form-group">
+        <label class="control-label">带清零天数： </label>
+        <v-input placeholder="" style="width:200px;display:inline-block" v-model="clearVacation"></v-input>
+      </div>
+      <div class="form-group artifactid-form-group">
+        <label class="control-label">正常累计天数： </label>
+        <v-input placeholder="" style="width:200px;display:inline-block" v-model="addingVacation"></v-input>
+      </div>
+      <div class="form-group artifactid-form-group">
+        <label class="control-label">下次清零年假时间： </label>
+        <v-input placeholder="" style="width:200px;display:inline-block" v-model="nextClearDay"></v-input>
+      </div>
+      <div class="form-group artifactid-form-group">
+        <label class="control-label">下次增加时间： </label>
+        <v-input placeholder="" style="width:200px;display:inline-block" v-model="nextAddDay"></v-input>
+      </div>
+    </div>
+    <div class="line_duoduo">
+      -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    </div>
+    <h2>根据业务线 小组 查询 工号 姓名</h2>
+    <div>
+      <v-select :optionOnChange='true' placeholder="请选择业务线" style="width: 213px;height: 40px;font-size: 14px;"
+                :data="lineOptions" @change="changeLine" id="select" class="search-text"></v-select>
+      <v-select :optionOnChange='true' placeholder="请选择小组" style="width: 213px;height: 40px;font-size: 14px;"
+                :data="groupOptions" @change="changeGroup" id="select" class="search-text"></v-select>
+      <v-input v-model="searchUserName" placeholder="输入员工姓名"
+               style="border-color:#EFF5F7;width: 220px;height: 40px;border-radius: 25px;font-size: 14px;"
+               class="search-text"></v-input>
+
+    </div>
+
+    <v-button type="info"
+              :style="{width:'140px',height:'40px',borderRadius:'25px',fontSize:'14px',marginLeft:'2.43vw'}"
+              @click="searchData">搜索
+    </v-button>
+
+    <div class="form-group artifactid-form-group">
+      <label class="control-label">工号： </label>
+      <v-input placeholder="" style="width:200px;display:inline-block" v-model="jobNum" readOnly="true"></v-input>
     </div>
   </div>
 </template>
 
 <script>
+  import axios from 'axios';
 
   export default {
     name: 'HelloWorld',
     data() {
       return {
-        groupId: 'com.gezhiwei',
-        artifact: 'demo',
-        mysqlUrl: '10.10.10.1:3306',
-        mysqlUser: 'root',
-        mysqlPassword: 'admin'
+        entryTime: '',
+        clearVacation: 0,
+        addingVacation: 0,
+        nextClearDay: '',
+        nextAddDay: '',
+
+        lineOptions: [],
+        groupOptions: [],
+        searchBusinessLine: '',
+        searchBusinessGroup: '',
+        searchUserName: '',
+
+        jobNum: ''
+
       }
     },
+    created: function () {
+      this.getSelectInfoLine();
+    },
+    components: {
+    },
     methods: {
-      downloadXyz() {
-        let dataJson = {
-          groupId: this.groupId,
-          artifactId: this.artifact,
-          mysqlUrl: this.mysqlUrl,
-          mysqlUser: this.mysqlUser,
-          mysqlPassword: this.mysqlPassword
+
+      commpute() {
+        if (this.entryTime == null || this.entryTime === '') {
+          alert("填写年假");
+          return;
+        }
+        var date = new Date();
+        if (this.entryTime > new Date()) {
+          alert("入职时间超过当前时间");
+          return;
+        }
+        let computeJson = {
+          entryTime: this.entryTime
         };
-        window.location.href = "http://localhost:8090/start/project?params=" + encodeURIComponent(JSON.stringify(dataJson));
+        axios.post(requestPath + 'open/vacation/compute', computeJson).then(response => {
+          this.clearVacation = response.data.data.clearVacation;
+          this.addingVacation = response.data.data.addingVacation;
+          this.nextClearDay = response.data.data.nextClearDay;
+          this.nextAddDay = response.data.data.nextAddDay;
+        }).catch(err => {
+          this.clearVacation.clear();
+          this.addingVacation.clear();
+          this.nextClearDay.clear();
+          this.nextAddDay.clear();
+        })
+      },
+      //获取选择信息
+      getSelectInfoLine: function () {
+        var _this = this;
+        axios.post(requestPath + 'open/listBusinessLine')
+          .then(res => {
+            if (res.data.data) {
+              let arr = [];
+              let result = res.data.data;
+
+              for (var i = 0; i < result.length; i++) {
+                let single = {value: 0, label: ''};
+                single.value = i + 1;
+                single.label = result[i];
+                arr.push(single)
+              }
+              _this.lineOptions = arr;
+            }
+          })
+          .catch(error => {
+            console.log(error)
+          })
+      },
+      //获取选择信息
+      getSelectInfoGroup: function () {
+        var _this = this;
+        axios.post(requestPath + 'open/listBusinessGroup', {
+          searchBusinessLine: this.searchBusinessLine
+        })
+          .then(res => {
+            if (res.data.data) {
+              let arr = [];
+              let result = res.data.data;
+
+              for (var i = 0; i < result.length; i++) {
+                let single = {value: 0, label: ''};
+                single.value = i + 1;
+                single.label = result[i];
+                arr.push(single)
+              }
+              _this.groupOptions = arr;
+            }
+          })
+          .catch(error => {
+            console.log(error)
+          })
+      },
+      //业务线选择
+      changeLine(val) {
+        this.searchBusinessLine = val.label;
+        this.getSelectInfoGroup();
+      },
+      changeGroup(val) {
+        this.searchBusinessGroup = val.label;
+      },
+      //搜索
+      searchData() {
+        var _this = this;
+        axios.post(requestPath + "open/vacation/jobNum", {
+          searchUserName: this.searchUserName,
+          searchBusinessLine: this.searchBusinessLine,
+          searchBusinessGroup: this.searchBusinessGroup
+        })
+          .then(res => {
+            if (res.data.data) {
+              _this.jobNum = res.data.data.jobNum;
+            }
+          })
+          .catch(error => {
+            console.log(error)
+          })
       }
     }
   }
@@ -57,12 +188,26 @@
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-  .download {
-    margin-top: 60px;
-    height: 35px;
-    width: 100px;
+  .control-label {
+    width: 150px;
+    display: inline-block;
+    text-align: right;
   }
+
+  .nianjia {
+    margin: 15px auto;
+  }
+
   .form-group {
-    margin-top: 10px;
+    margin: 10px auto;
+  }
+
+  .line_duoduo {
+    margin-top: 50px;
+    margin-bottom: 50px;
+  }
+
+  .search-text {
+    margin: 1px 10px;
   }
 </style>
